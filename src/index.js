@@ -1,5 +1,5 @@
 import './css/styles.css';
-import API from './fetchCountries';
+import { fetchCountries } from './fetchCountries';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import debounce from 'lodash.debounce';
 
@@ -18,24 +18,45 @@ function onSearch(e) {
 
   const searchCountry = refs.input.value.trim();
 
-  API.fetchCountries(searchCountry)
-    .then(fetchManyCoutries)
-    .then(countriesList)
-    .then(countryInfoCard)
-    .catch(onFetchError);
+  if (searchCountry) {
+    fetchCountries(searchCountry)
+      .then(country => {
+        if (country.length === 1) {
+          // country[0].languages = Object.values(country[0].languages).join(', ');
+
+          countryInfoCard(country);
+          refs.countryList.innerHTML = '';
+        }
+        if (country.length <= 10 && country.length > 1) {
+          countriesList(country);
+          refs.countryInfo.innerHTML = '';
+        }
+        if (country.length > 10) {
+          fetchManyCoutries(country);
+          clearHTML();
+        }
+      })
+      .catch(error => {
+        if (error.message === '404' && searchCountry) {
+          Notify.failure('Oops, there is no country with that name');
+          clearHTML();
+        }
+      });
+  }
+  clearHTML();
 }
 
 function countryInfoCard(countries) {
-  if (countries.length === 1) {
-    const markup = countries
-      .map(({ name, capital, population, flags, languages }) => {
-        return `
+  const markup = countries
+    .map(({ name, capital, population, flags, languages }) => {
+      return `
       <div class="country__card">
-        <div>
+        <div class="country__main">
           <img class="country__flag"
             src="${flags.svg}"
             alt="flag of ${name.official}"
-            width="35"
+            width="50"
+            height="30"
             />
           <h2 class="country__name">${name.official}</h2>
         </div>
@@ -46,43 +67,39 @@ function countryInfoCard(countries) {
           <span class="population">${population}</span>
         </p>
         <p class="country__language">Languages:
-          <span class="language">${Object.values(languages)}</span>
+          <span class="language"> ${Object.values(languages)}</span>
         </p>
       </div>
       `;
-      })
-      .join('');
-    refs.countryInfo.innerHTML = markup;
-    console.log(markup);
-  }
+    })
+    .join('');
+  refs.countryInfo.innerHTML = markup;
 }
 
 function countriesList(countries) {
-  if (countries.length <= 10) {
-    const markup = countries
-      .map(({ name, flags }) => {
-        return `
-      <li>
-        <img class="country__flag"
+  const markup = countries
+    .map(({ name, flags }) => {
+      return `
+      <li class="country__item">
+        <img class="country__flag--list"
           src="${flags.svg}"
           alt="flag of ${name.official}"
-          width="35"
+          width="50"
+          height="30"
           />
-        <h2 class="country__name">${name.official}</h2>
+        <p class="country__name--list">${name.official}</p>
       </li>
       `;
-      })
-      .join('');
-    refs.countryList.innerHTML = markup;
-  }
+    })
+    .join('');
+  refs.countryList.innerHTML = markup;
 }
 
-function fetchManyCoutries(countries) {
-  if (countries.length > 10) {
-    Notify.info('Too many matches found. Please enter a more specific name.');
-  }
+function fetchManyCoutries() {
+  Notify.info('Too many matches found. Please enter a more specific name.');
 }
 
-function onFetchError() {
-  Notify.failure('Oops, there is no country with that name');
+function clearHTML() {
+  refs.countryInfo.innerHTML = '';
+  refs.countryList.innerHTML = '';
 }
